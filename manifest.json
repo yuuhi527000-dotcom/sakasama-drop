@@ -1,0 +1,17 @@
+{
+  "name": "さかさまドロップ",
+  "short_name": "さかさま",
+  "description": "4つつなげて消す落ちものパズル。相手の盤面をさかさまに！",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#150f36",
+  "theme_color": "#150f36",
+  "lang": "ja",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
