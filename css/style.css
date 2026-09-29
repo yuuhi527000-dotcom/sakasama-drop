@@ -313,3 +313,8 @@ body.swipe .swipe-hint { order: -1; }
 .pad .hard { font-size: 26px; color: var(--yellow); }
 #game.land .pad [data-key="down"] { grid-column: 1; grid-row: 2; }
 #game.land .pad [data-key="hard"] { grid-column: 2; grid-row: 2; }
+
+/* スマホで連打しても拡大・スクロール・長押しメニューが出ないように */
+#game, #game * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+#game .dialog, #game .dialog * { touch-action: manipulation; }
+html, body { overscroll-behavior: none; -webkit-text-size-adjust: 100%; }

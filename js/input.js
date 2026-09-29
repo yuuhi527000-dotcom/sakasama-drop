@@ -115,6 +115,28 @@
     el.addEventListener('pointercancel', end);
   };
 
+  // ---- スマホで連打したときの拡大（ダブルタップ・ピンチ）を止める ----
+  (function preventZoom() {
+    let lastTouch = 0;
+    const inPlay = t => t && t.closest && t.closest('#game') && !t.closest('.dialog');
+    document.addEventListener('touchend', e => {
+      const now = Date.now();
+      // ゲーム画面で0.35秒以内の2回目のタップは、ブラウザの拡大に使わせない
+      if (inPlay(e.target) && now - lastTouch < 350) {
+        e.preventDefault();
+        // 拡大は止めつつ、一時停止などの普通のボタンはちゃんと押せるようにする
+        const btn = e.target.closest('button:not([data-key])');
+        if (btn) btn.click();
+      }
+      lastTouch = now;
+    }, { passive: false });
+    document.addEventListener('touchmove', e => {
+      if (inPlay(e.target) || e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('dblclick', e => { if (inPlay(e.target)) e.preventDefault(); }, { passive: false });
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  })();
+
   // 効果音（ファイル不要。ブラウザで音を合成）
   const Sound = {
     ctx: null, on: true,
