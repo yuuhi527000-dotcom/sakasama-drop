@@ -43,7 +43,7 @@
             <button class="btn lv hard" data-level="hard">つよい</button>
           </div>
         </div>
-        <button class="btn wide soon" disabled>あいことばで対戦 <small>じゅんびちゅう</small></button>
+        <button class="btn wide online-btn" id="btn-online">あいことばで対戦</button>
         <button class="btn wide sub" id="btn-howto">あそびかた</button>
         <p class="land-tip touch-only-block">スマホを横にすると、相手の盤面も同じ大きさで見えます<br>ブラウザの「ホーム画面に追加」で全画面で遊べます</p>
         <div class="ctrl-setting touch-only-block">
@@ -58,13 +58,13 @@
   <section id="game" class="screen">
     <header class="hud-top">
       <button class="icon-btn" id="btn-pause" aria-label="一時停止">Ⅱ</button>
-      <div class="versus"><span class="you">あなた</span><b id="wins">0 - 0</b><span class="cpu" id="cpu-name">CPU</span></div>
+      <div class="versus"><span class="you" id="me-name">あなた</span><b id="wins">0 - 0</b><span class="cpu" id="cpu-name">CPU</span><span class="eyes" id="watchers"></span></div>
       <button class="icon-btn" id="btn-sound" aria-label="音">♪</button>
     </header>
 
     <div class="field">
       <div class="area me">
-        <div class="me-head">あなた</div>
+        <div class="me-head" id="me-label">あなた</div>
         <div class="gbar" id="me-garbage"></div>
         <div class="board-wrap" id="me-wrap"><canvas id="me-board"></canvas></div>
       </div>
@@ -137,6 +137,7 @@
           <div class="seg"><button data-mode="button">ボタン</button><button data-mode="swipe">なぞる</button></div>
         </div>
         <button class="btn wide" id="btn-resume">つづける</button>
+        <p class="hint online-only">オンライン対戦中は止まりません</p>
         <button class="btn wide sub" id="btn-quit">タイトルへ</button>
       </div>
     </div>
@@ -151,10 +152,32 @@
           <div><span>さかさま</span><b id="res-flip">0</b></div>
         </div>
         <button class="btn wide" id="btn-again">もう一回</button>
+        <p class="hint" id="again-msg"></p>
         <button class="btn wide sub" id="btn-back">タイトルへ</button>
       </div>
     </div>
   </section>
+
+  <!-- ===== 合言葉で対戦 ===== -->
+  <div class="overlay modal" id="ov-online">
+    <div class="dialog online">
+      <h2>あいことばで対戦</h2>
+      <div id="online-form">
+        <label class="field-l">あいことば<input id="in-code" maxlength="20" autocomplete="off" placeholder="例：ねこ123"></label>
+        <label class="field-l">なまえ<input id="in-name" maxlength="8" autocomplete="off" placeholder="ななし"></label>
+        <p class="hint">同じあいことばを入れた人と対戦できます。3人目からは観戦になります。</p>
+        <button class="btn wide" id="btn-join">はいる</button>
+      </div>
+      <div id="online-wait" hidden>
+        <p class="wait-code">あいことば「<b id="wait-code"></b>」</p>
+        <p class="wait-msg" id="wait-msg">あいてを待っています…</p>
+        <div class="dots"><i></i><i></i><i></i></div>
+        <button class="btn wide sub" id="btn-copy">さそうリンクをコピー</button>
+      </div>
+      <p class="err" id="online-err"></p>
+      <button class="btn wide sub" id="btn-online-close">もどる</button>
+    </div>
+  </div>
 
   <!-- ===== あそびかた ===== -->
   <div class="overlay modal" id="ov-howto">
@@ -166,6 +189,7 @@
         <li>つぶを消すと<b>さかさまゲージ</b>が溜まる。満タンで<b>さかさま</b>を押すと、<b>相手の盤面が上下反転</b>！　積み上げた形がバラバラになり、思わぬ連鎖が起きることも。</li>
         <li>さかさまは<b>相手に</b>も<b>自分に</b>も使える。相手に使うと組みを崩して邪魔できる。自分に使うと、起きた連鎖は攻撃にならないが、自分に降ってくる予定のいしを消せる（守り）。</li>
         <li>さかさまを使われた側は、今のつぶを置いて連鎖が終わったあと、次のつぶが出る前に反転する。</li>
+        <li><b>あいことばで対戦</b>：同じあいことばを入れた2人で対戦。3人目からは観戦になる。「さそうリンク」を送れば、開くだけで同じ部屋に入れる。</li>
         <li>96秒たつと「こうげきアップ」。そこから16秒ごとに、少ない連鎖でもいしがたくさん送れるようになる。</li>
         <li>スマホはブラウザの「ホーム画面に追加」をすると、アプリのように全画面で遊べる。</li>
         <li>盤面をぜんぶ消すと「ぜんけし」。次の連鎖でいしがたくさん送れる。</li>
@@ -188,6 +212,8 @@
 <script src="js/cpu.js"></script>
 <script src="js/render.js"></script>
 <script src="js/input.js"></script>
+<script src="js/online.js"></script>
+<script src="js/firebase-config.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

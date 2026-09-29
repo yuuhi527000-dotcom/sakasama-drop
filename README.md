@@ -15,6 +15,9 @@
 | `js/render.js` | つぶと盤面の描画 |
 | `js/input.js` | 操作（キー・ボタン）と効果音 |
 | `js/main.js` | 画面切り替え・試合の進行 |
+| `js/online.js` | 合言葉オンライン対戦（部屋・送受信・観戦） |
+| `js/firebase-config.js` | オンライン対戦の接続先（Firebase） |
+| `database.rules.json` | Firebaseのデータベースに貼る安全ルール |
 | `manifest.json`・`icons/` | ホーム画面に追加したときの名前・アイコン・全画面設定 |
 
 ## 操作

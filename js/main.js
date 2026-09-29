@@ -7,7 +7,7 @@
   const LEVEL_NAME = { easy: 'CPU よわい', normal: 'CPU ふつう', hard: 'CPU つよい' };
 
   const st = {
-    level: 'normal', me: null, cpu: null, ai: null,
+    level: 'normal', me: null, opp: null, ai: null, mode: 'cpu', room: null, watch: false,
     running: false, paused: false, over: false, countdown: 0, lastCount: 0,
     wins: [0, 0], flipsUsed: 0, screen: 'title'
   };
@@ -46,8 +46,8 @@
     SG.Sound.init();
     st.level = b.dataset.level;
     st.wins = [0, 0];
-    $('#cpu-name').textContent = LEVEL_NAME[st.level];
-    $('#opp-label').textContent = LEVEL_NAME[st.level];
+    setMode2('cpu');
+    setNames('あなた', LEVEL_NAME[st.level]);
     show('game');
     startMatch();
   }));
@@ -57,7 +57,15 @@
   $('#btn-resume').addEventListener('click', () => togglePause(false));
   $('#btn-quit').addEventListener('click', toTitle);
   $('#btn-back').addEventListener('click', toTitle);
-  $('#btn-again').addEventListener('click', () => { SG.Sound.init(); startMatch(); });
+  $('#btn-again').addEventListener('click', () => {
+    SG.Sound.init();
+    if (st.mode === 'online') {
+      if (st.watch) return;
+      st.room.rematch();
+      $('#btn-again').disabled = true;
+      $('#again-msg').textContent = 'あいての「もう一回」を待っています…';
+    } else startMatch();
+  });
   $('#btn-sound').addEventListener('click', () => {
     SG.Sound.on = !SG.Sound.on;
     $('#btn-sound').classList.toggle('off', !SG.Sound.on);
@@ -70,15 +78,29 @@
   input.on('skill', target => { if (st.me) st.me.useSkill(target); });
   input.on('pause', () => { if (st.screen === 'game' && !st.over) togglePause(); });
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden && st.running && !st.paused) togglePause(true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && st.running && !st.paused && st.mode === 'cpu') togglePause(true); });
 
   function toTitle() {
-    st.me = null; st.running = false; st.paused = false; input.enabled = false;
+    if (st.room) { st.room.leave(); st.room = null; }
+    st.me = null; st.opp = null; st.running = false; st.paused = false; input.enabled = false;
     overlay('#ov-pause', false); overlay('#ov-result', false); overlay('#ov-count', false);
+    setMode2('cpu');
     show('title');
   }
 
+  function setMode2(m, watch) {
+    st.mode = m; st.watch = !!watch;
+    document.body.classList.toggle('online', m === 'online');
+    document.body.classList.toggle('watching', !!watch);
+    $('#watchers').textContent = '';
+  }
+  function setNames(left, right) {
+    $('#me-name').textContent = left; $('#me-label').textContent = left;
+    $('#cpu-name').textContent = right; $('#opp-label').textContent = right;
+  }
+
   function togglePause(force) {
+    if (st.mode === 'online') { overlay('#ov-pause', !$('#ov-pause').classList.contains('show')); return; }
     if (!st.me || st.over) return;
     st.paused = force === undefined ? !st.paused : force;
     input.enabled = st.running && !st.paused;
@@ -92,6 +114,7 @@
     const pairs = new SG.PairSource(seed);
     const me = new SG.Player({ pairs, seed: seed ^ 0x2468 });
     const cpu = new SG.Player({ pairs, seed: seed ^ 0x1357 });
+    st.opp = cpu;
     me.onAttack = n => cpu.receiveGarbage(n);
     cpu.onAttack = n => me.receiveGarbage(n);
     me.onSkill = () => cpu.receiveFlip();
@@ -114,24 +137,30 @@
       else if (ev === 'flip') hit('#opp-wrap');
       else if (ev === 'garbage') hit('#opp-wrap');
     };
-    Object.assign(st, { me, cpu, ai: new SG.Cpu(cpu, me, st.level), running: false, paused: false, over: false, countdown: 2000, lastCount: 0, flipsUsed: 0 });
+    Object.assign(st, { me, opp: cpu, ai: new SG.Cpu(cpu, me, st.level), running: false, paused: false, over: false, countdown: 2000, lastCount: 0, flipsUsed: 0 });
     st.lastGauge = 0; st.gMe = -1; st.gOpp = -1; st.seedN = -1; st.seedT = 0;
     input.enabled = false; input.releaseAll();
     overlay('#ov-result', false); overlay('#ov-pause', false); overlay('#ov-count', true);
     $('#wins').textContent = st.wins[0] + ' - ' + st.wins[1];
   }
 
-  function finish(win) {
+  // result: true=かち false=まけ  または 観戦用の文字列
+  function finish(win, text) {
     if (st.over) return;
     st.over = true; st.running = false; input.enabled = false; input.releaseAll();
-    st.wins[win ? 0 : 1]++;
+    if (typeof win === 'boolean') st.wins[win ? 0 : 1]++;
+    else if (typeof win === 'number') st.wins[win]++;
     $('#wins').textContent = st.wins[0] + ' - ' + st.wins[1];
     setTimeout(() => {
       if (!st.me) return;
-      win ? SG.Sound.win() : SG.Sound.lose();
+      const good = win === true || typeof win === 'number';
+      good ? SG.Sound.win() : SG.Sound.lose();
       const h = $('#result-title');
-      h.textContent = win ? 'かち！' : 'まけ…';
-      h.className = win ? 'win' : 'lose';
+      h.textContent = text || (win ? 'かち！' : 'まけ…');
+      h.className = good ? 'win' : 'lose';
+      $('#btn-again').disabled = false;
+      $('#btn-again').style.display = st.watch ? 'none' : '';
+      $('#again-msg').textContent = st.watch ? '次の試合が始まるまで待っています…' : '';
       $('#res-score').textContent = st.me.score.toLocaleString();
       $('#res-chain').textContent = st.me.maxChain;
       $('#res-flip').textContent = st.flipsUsed;
@@ -159,6 +188,7 @@
     const dt = Math.min(50, now - last); last = now;
     if (st.screen === 'title') drawTitleBg(dt);
     if (st.me && st.screen === 'game') {
+      if (st.mode === 'online' && st.over) { st.opp.update(dt); if (st.watch) st.me.update(dt); }
       if (!st.paused) {
         if (st.countdown > 0) {
           st.countdown -= dt;
@@ -176,11 +206,28 @@
             setTimeout(() => overlay('#ov-count', false), 350);
           }
         } else if (st.running) {
-          input.update(dt);
-          st.me.softDrop = input.softDrop;
-          st.me.update(dt);
-          st.ai.update(dt);
-          st.cpu.update(dt);
+          if (st.mode === 'cpu') {
+            input.update(dt);
+            st.me.softDrop = input.softDrop;
+            st.me.update(dt);
+            st.ai.update(dt);
+            st.opp.update(dt);
+          } else {
+            if (!st.watch && !st.over) {
+              input.update(dt);
+              st.me.softDrop = input.softDrop;
+              st.me.update(dt);
+              // 自分の盤面の様子を0.1秒ごとに送る（変わったときだけ）
+              if (now - (st.sentAt || 0) > 100) {
+                st.sentAt = now;
+                const pk = SG.packBoard(st.me, st.myName);
+                const j = JSON.stringify(pk);
+                if (j !== st.lastSent) { st.lastSent = j; st.room.sendBoard(pk); }
+              }
+            }
+            if (st.watch) st.me.update(dt);
+            st.opp.update(dt);
+          }
         }
       }
       render(now);
@@ -189,7 +236,7 @@
   }
 
   function render(now) {
-    const me = st.me, cpu = st.cpu;
+    const me = st.me, cpu = st.opp;
     views.me.draw(me, now, { ghost: true });
     views.opp.draw(cpu, now, { ghost: false });
     views.next.draw(me);
@@ -209,6 +256,152 @@
     if (cpu.pendingGarbage !== st.gOpp) { st.gOpp = cpu.pendingGarbage; $('#opp-garbage').innerHTML = garbageHTML(st.gOpp); }
   }
 
+  // ---------- 合言葉オンライン対戦 ----------
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const el = document.createElement('script');
+      el.src = src; el.onload = res; el.onerror = () => rej(new Error('通信できませんでした。電波のよいところでもう一度ためしてください'));
+      document.head.appendChild(el);
+    });
+  }
+  async function getDb() {
+    if (SG._db) return SG._db;
+    if (!SG.FIREBASE_CONFIG || !SG.FIREBASE_CONFIG.apiKey) throw new Error('オンライン対戦はまだ準備中です');
+    const v = '10.12.2';
+    await loadScript('https://www.gstatic.com/firebasejs/' + v + '/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/' + v + '/firebase-database-compat.js');
+    if (!firebase.apps.length) firebase.initializeApp(SG.FIREBASE_CONFIG);
+    SG._db = firebase.database();
+    return SG._db;
+  }
+
+  function lobby(showWait) {
+    $('#online-form').hidden = showWait; $('#online-wait').hidden = !showWait;
+  }
+  $('#btn-online').addEventListener('click', () => {
+    SG.Sound.init();
+    lobby(false); $('#online-err').textContent = '';
+    try { $('#in-name').value = localStorage.getItem('sakasama-name') || ''; } catch (e) {}
+    overlay('#ov-online', true);
+  });
+  $('#btn-online-close').addEventListener('click', () => {
+    if (st.room) { st.room.leave(); st.room = null; }
+    setMode2('cpu');
+    overlay('#ov-online', false);
+  });
+  $('#btn-copy').addEventListener('click', async () => {
+    const url = location.origin + location.pathname + '?room=' + encodeURIComponent(st.room ? st.room.code : '');
+    try { await navigator.clipboard.writeText(url); $('#btn-copy').textContent = 'コピーしました！'; }
+    catch (e) { prompt('このリンクを送ってください', url); }
+    setTimeout(() => { $('#btn-copy').textContent = 'さそうリンクをコピー'; }, 2000);
+  });
+  $('#btn-join').addEventListener('click', joinOnline);
+  $('#in-code').addEventListener('keydown', e => { if (e.key === 'Enter') joinOnline(); });
+
+  async function joinOnline() {
+    const code = SG.cleanCode($('#in-code').value);
+    const name = $('#in-name').value.trim().slice(0, 8) || 'ななし';
+    if (!code) { $('#online-err').textContent = 'あいことばを入れてください（. # $ / [ ] は使えません）'; return; }
+    try { localStorage.setItem('sakasama-name', name); } catch (e) {}
+    $('#online-err').textContent = ''; $('#btn-join').disabled = true; $('#btn-join').textContent = 'つないでいます…';
+    try {
+      const db = await getDb();
+      st.myName = name;
+      st.wins = [0, 0];
+      const room = new SG.OnlineRoom(db, code, name, {
+        onPeople: onPeople, onStart: onStart, onEvent: onEvent,
+        onBoard: (s, b) => { const r = st.remotes && st.remotes[s]; if (r) r.apply(b); },
+        onResult: onResult
+      });
+      st.room = room;
+      await room.join();
+      setMode2('online', room.slot < 0);
+      $('#wait-code').textContent = room.code;
+      $('#wait-msg').textContent = room.slot < 0 ? '観戦で入りました。試合が始まるのを待っています…' : 'あいてを待っています…';
+      lobby(true);
+    } catch (e) {
+      $('#online-err').textContent = e.message || 'つながりませんでした';
+      if (st.room) { st.room.leave(); st.room = null; }
+    }
+    $('#btn-join').disabled = false; $('#btn-join').textContent = 'はいる';
+  }
+
+  function onPeople(p) {
+    st.people = p;
+    const names = p.names;
+    $('#watchers').textContent = p.watchers ? '👀' + p.watchers : '';
+    if (st.room && st.room.slot >= 0 && !names[1 - st.room.slot] && $('#ov-online').classList.contains('show')) {
+      $('#wait-msg').textContent = 'あいてを待っています…';
+    }
+  }
+
+  function onStart(g) {
+    const room = st.room; if (!room) return;
+    const pairs = new SG.PairSource(g.seed);
+    const names = g.names.map(n => n || '？');
+    st.remotes = [new SG.RemotePlayer(pairs), new SG.RemotePlayer(pairs)];
+    st.remotes.forEach(r => { r.onFlip = () => SG.Sound.flip(); });
+    if (g.slot >= 0) {
+      const me = new SG.Player({ pairs, seed: g.seed ^ (0x2468 + g.slot * 7919) });
+      const o = 1 - g.slot;
+      me.onAttack = n => room.sendAttack(n);
+      me.onSkill = () => room.sendFlip();
+      me.onDead = () => room.report(g.slot, 'dead');
+      me.listener = (ev, d) => {
+        if (ev === 'pop') SG.Sound.pop(d.chain);
+        else if (ev === 'lock') SG.Sound.lock();
+        else if (ev === 'harddrop') SG.Sound.hard();
+        else if (ev === 'allclear') SG.Sound.win();
+        else if (ev === 'garbage') { SG.Sound.garbage(); hit('#me-wrap'); }
+        else if (ev === 'skill') { SG.Sound.skill(); st.flipsUsed++; }
+        else if (ev === 'flip') { SG.Sound.flip(); hit('#me-wrap'); }
+        else if (ev === 'margin') SG.Sound.ready();
+        else if (ev === 'cancel') SG.Sound.win();
+      };
+      st.remotes[o].onFlip = () => hit('#opp-wrap');
+      st.me = me; st.opp = st.remotes[o];
+      setNames(names[g.slot], names[o]);
+    } else {
+      st.me = st.remotes[0]; st.opp = st.remotes[1];
+      st.remotes[0].onFlip = () => hit('#me-wrap');
+      st.remotes[1].onFlip = () => hit('#opp-wrap');
+      setNames(names[0], names[1]);
+      st.me.score = 0;
+    }
+    Object.assign(st, { running: false, paused: false, over: false, countdown: Math.max(300, g.wait), lastCount: 0, flipsUsed: 0, lastSent: '', sentAt: 0 });
+    st.gMe = -1; st.gOpp = -1; st.lastReady = null;
+    input.enabled = false; input.releaseAll();
+    overlay('#ov-online', false); overlay('#ov-result', false); overlay('#ov-pause', false); overlay('#ov-count', true);
+    $('#wins').textContent = st.wins[0] + ' - ' + st.wins[1];
+    show('game');
+  }
+
+  function onEvent(s, e) {
+    if (!st.me || st.watch || st.over || !e) return;
+    if (e.t === 'a') st.me.receiveGarbage(e.n);
+    else if (e.t === 'f') { st.me.receiveFlip(); SG.Sound.skill(); }
+  }
+
+  function onResult(r) {
+    const room = st.room; if (!room || !st.me) return;
+    if (!st.watch) {
+      // 最後の盤面を送っておく（観戦者用）
+      room.sendBoard(SG.packBoard(st.me, st.myName));
+      const win = r.loser !== room.slot;
+      finish(win, win ? (r.why === 'left' ? 'かち！（あいてが退室）' : 'かち！') : 'まけ…');
+    } else {
+      const names = [$('#me-name').textContent, $('#cpu-name').textContent];
+      const w = 1 - r.loser;
+      finish(w, names[w] + ' のかち！');
+    }
+  }
+
+  // さそうリンク（?room=あいことば）から来たら、あいことばを入れた状態で開く
+  (function () {
+    const q = new URLSearchParams(location.search).get('room');
+    if (q) { $('#in-code').value = q; setTimeout(() => $('#btn-online').click(), 50); }
+  })();
+
   // ---------- レイアウト（画面サイズに合わせて盤面の大きさを決める） ----------
   function layout() {
     const W = window.innerWidth;
@@ -216,13 +409,13 @@
     const touch = isTouch();
     document.body.classList.toggle('touch', touch);
     // スマホ横持ち：本家と同じく自分と相手を同じ大きさで並べ、操作ボタンを左右に置く
-    const land = touch && W > H;
-    const wide = land || (W >= 760 && W > H * 0.95);
+    const land = touch && W > H && !st.watch;
+    const wide = land || st.watch || (W >= 760 && W > H * 0.95);
     const game = $('#game');
     game.classList.toggle('land', land);
     game.classList.toggle('wide', wide);
     game.classList.toggle('narrow', !wide);
-    const ctrlH = (!touch || land) ? 0 : input.mode === 'swipe' ? 64 : Math.round(Math.min(160, Math.max(116, H * 0.2)));
+    const ctrlH = (!touch || land || st.watch) ? 0 : input.mode === 'swipe' ? 64 : Math.round(Math.min(160, Math.max(116, H * 0.2)));
     document.documentElement.style.setProperty('--ctrl-h', ctrlH + 'px');
     const rows = C.ROWS - C.HIDDEN + 0.5;
     let cell, oppCell, sideW;
@@ -235,8 +428,8 @@
       oppCell = cell;
     } else if (wide) {
       const availH = H - 44 - ctrlH - 20 - 22 - 16;
-      sideW = 170;
-      cell = Math.floor(Math.min(availH / rows, (W - sideW - 90) / (C.COLS * 2), 46));
+      sideW = W < 700 ? Math.round(Math.max(76, W * 0.2)) : 170;
+      cell = Math.floor(Math.min(availH / rows, (W - sideW - (W < 700 ? 48 : 90)) / (C.COLS * 2), 46));
       oppCell = cell;
     } else {
       const availH = H - 44 - ctrlH - 20 - 22;
