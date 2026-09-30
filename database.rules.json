@@ -12,10 +12,14 @@
           }
         },
         "watchers": {
-          "$id": { ".validate": "$id.length <= 24 && newData.child('name').isString() && newData.child('name').val().length <= 8" }
+          "$id": {
+            ".validate": "$id.length <= 24 && newData.child('name').isString() && newData.child('name').val().length <= 8"
+          }
         },
         "ready": {
-          "$slot": { ".validate": "($slot === '0' || $slot === '1') && newData.isNumber()" }
+          "$slot": {
+            ".validate": "($slot === '0' || $slot === '1') && newData.isNumber()"
+          }
         },
         "game": {
           ".validate": "newData.hasChildren(['round', 'seed', 'startAt'])"
@@ -26,12 +30,61 @@
           }
         },
         "ev": {
-          "$round": { "$slot": { "$id": { ".validate": "newData.child('t').isString()" } } }
+          "$round": {
+            "$slot": {
+              "$id": {
+                ".validate": "newData.child('t').isString()"
+              }
+            }
+          }
         },
         "result": {
-          "$round": { ".validate": "newData.hasChildren(['loser'])" }
+          "$round": {
+            ".validate": "newData.hasChildren(['loser'])"
+          }
         },
-        "$other": { ".validate": false }
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "daruma": {
+      "$code": {
+        ".read": "$code.length <= 20",
+        ".write": "$code.length <= 20",
+        "players": {
+          "$slot": {
+            ".validate": "($slot === '0' || $slot === '1') && newData.hasChildren(['id', 'name']) && newData.child('name').isString() && newData.child('name').val().length <= 8"
+          }
+        },
+        "watchers": {
+          "$id": {
+            ".validate": "$id.length <= 24 && newData.child('name').isString() && newData.child('name').val().length <= 8"
+          }
+        },
+        "ready": {
+          "$slot": {
+            ".validate": "($slot === '0' || $slot === '1') && newData.isNumber()"
+          }
+        },
+        "game": {
+          ".validate": "newData.hasChildren(['round', 'seed', 'startAt'])"
+        },
+        "mv": {
+          "$round": {
+            "$id": {
+              ".validate": "newData.hasChildren(['c', 's', 'i']) && newData.child('c').isNumber() && newData.child('c').val() >= 0 && newData.child('c').val() <= 6"
+            }
+          }
+        },
+        "result": {
+          "$round": {
+            ".validate": "newData.hasChildren(['loser'])"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

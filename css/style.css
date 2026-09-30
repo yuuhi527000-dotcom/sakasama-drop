@@ -349,3 +349,8 @@ body.watching #game.land { grid-template-columns: 0 1fr 0; }
 
 body.watching #game.wide .field { gap: 8px; padding: 8px 6px; }
 body.watching .stats { display: none; }
+
+.menu-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.menu-sub .btn { width: 100%; font-size: 15px; padding: 12px 8px; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; }
+a.btn.garden { color: var(--ink); }
